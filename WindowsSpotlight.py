@@ -7,19 +7,21 @@ import sys
 from datetime import datetime, date
 
 # ============================================================
-# 설정
+# Configuration
 # ============================================================
 DOWNLOAD_DIR = r"C:\Path\To\Your\Archive\Folder"
 
-# Windows 잠금 화면 캐시 경로 (YOUR_USER_SID 부분을 본인 PC의 SID로 변경해야 합니다)
+# Windows Lock Screen cache path (Replace YOUR_USER_SID with your actual SID)
 READONLY_DIR = r"C:\ProgramData\Microsoft\Windows\SystemData\<YOUR_USER_SID>\ReadOnly"
+
+# Log file path
 LOG_FILE = os.path.join(DOWNLOAD_DIR, "bing_lock_screen_log.txt")
 
-API_MAX_RETRIES = 8          # API 호출 최대 재시도 횟수
-API_RETRY_DELAY = 45         # 재시도 대기 시간 (초)
-CURL_API_TIMEOUT = 20        # API 호출 타임아웃
-CURL_IMG_TIMEOUT = 90        # 이미지 다운로드 타임아웃
-RUN_ONCE_PER_DAY = True      # 하루에 한 번만 실행되도록 제한할지 여부
+API_MAX_RETRIES = 8          # Maximum API retry attempts
+API_RETRY_DELAY = 45         # Delay between retries in seconds
+CURL_API_TIMEOUT = 20        # API call timeout
+CURL_IMG_TIMEOUT = 90        # Image download timeout (UHD may take longer)
+RUN_ONCE_PER_DAY = True      # Limit execution to once per day
 
 
 def log_message(msg):
@@ -33,16 +35,16 @@ def log_message(msg):
 
 
 def flush_dns():
-    """DNS 캐시 플러시 (코드 6 대응)"""
+    """Flush DNS cache to resolve potential network errors (curl code 6)"""
     try:
         subprocess.run(
             ["ipconfig", "/flushdns"],
             capture_output=True, timeout=10
         )
-        log_message("DNS 캐시 플러시 실행")
+        log_message("DNS cache flushed.")
         time.sleep(2)
     except Exception as e:
-        log_message(f"DNS 플러시 실패: {e}")
+        log_message(f"Failed to flush DNS: {e}")
 
 
 def already_ran_today():
@@ -68,22 +70,22 @@ def fetch_bing_image_url():
             )
 
             if result.returncode != 0:
-                # DNS 실패(코드 6)면 플러시 후 재시도
+                # Flush DNS and retry if DNS resolution fails (code 6)
                 if result.returncode == 6:
-                    log_message(f"API DNS 실패 (시도 {attempt+1}/{API_MAX_RETRIES}) → DNS 플러시")
+                    log_message(f"API DNS failed (Attempt {attempt+1}/{API_MAX_RETRIES}) → Flushing DNS")
                     flush_dns()
-                raise RuntimeError(f"curl 반환 코드 {result.returncode}")
+                raise RuntimeError(f"curl exit code {result.returncode}")
 
             if not result.stdout.strip():
-                raise ValueError("API 응답이 비어 있습니다.")
+                raise ValueError("Empty API response.")
 
             data = json.loads(result.stdout)
             urlbase = data["images"][0]["urlbase"]
-            log_message(f"Bing API 요청 성공 (시도 {attempt + 1})")
+            log_message(f"Bing API request successful (Attempt {attempt + 1})")
             return urlbase
 
         except Exception as e:
-            log_message(f"API 요청 실패 (시도 {attempt + 1}/{API_MAX_RETRIES}): {e}")
+            log_message(f"API request failed (Attempt {attempt + 1}/{API_MAX_RETRIES}): {e}")
             if attempt < API_MAX_RETRIES - 1:
                 time.sleep(API_RETRY_DELAY)
 
@@ -95,9 +97,9 @@ def download_image(urlbase, save_path):
 
     for suffix in suffixes:
         image_url = "https://www.bing.com" + urlbase + suffix
-        log_message(f"다운로드 시도: {suffix}")
+        log_message(f"Attempting download: {suffix}")
 
-        for attempt in range(3):  # 각 해상도별로 최대 3번
+        for attempt in range(3):  # Max 3 attempts per resolution
             try:
                 result = subprocess.run(
                     ["curl.exe", "-sf", "--max-time", str(CURL_IMG_TIMEOUT),
@@ -108,17 +110,17 @@ def download_image(urlbase, save_path):
                 )
 
                 if result.returncode == 0 and os.path.exists(save_path) and os.path.getsize(save_path) > 10000:
-                    log_message(f"다운로드 성공: {os.path.basename(save_path)}")
+                    log_message(f"Download successful: {os.path.basename(save_path)}")
                     return True
 
                 if result.returncode == 6:
-                    log_message(f"다운로드 DNS 실패 ({suffix}) → DNS 플러시")
+                    log_message(f"Download DNS failed ({suffix}) → Flushing DNS")
                     flush_dns()
                 else:
-                    log_message(f"다운로드 실패 ({suffix}): 반환 코드 {result.returncode}")
+                    log_message(f"Download failed ({suffix}): exit code {result.returncode}")
 
             except Exception as e:
-                log_message(f"다운로드 예외 ({suffix}): {e}")
+                log_message(f"Download exception ({suffix}): {e}")
 
             if attempt < 2:
                 time.sleep(10)
@@ -128,7 +130,7 @@ def download_image(urlbase, save_path):
 
 def replace_cache_images(source_image):
     if not os.path.exists(READONLY_DIR):
-        log_message(f"ReadOnly 경로를 찾을 수 없음: {READONLY_DIR}")
+        log_message(f"ReadOnly directory not found: {READONLY_DIR}")
         return False
 
     replaced = 0
@@ -140,7 +142,7 @@ def replace_cache_images(source_image):
         if not os.path.isdir(cache_dir):
             continue
 
-        log_message(f"캐시 폴더 처리: {cache_dir}")
+        log_message(f"Processing cache folder: {cache_dir}")
         for file in os.listdir(cache_dir):
             if not file.lower().endswith((".jpg", ".jpeg", ".png")):
                 continue
@@ -150,27 +152,27 @@ def replace_cache_images(source_image):
                 subprocess.run(["attrib", "-r", target_file], capture_output=True)
                 shutil.copy2(source_image, target_file)
                 replaced += 1
-                log_message(f"  캐시 교체 성공: {folder_name}\\{file}")
+                log_message(f"  Cache replaced successfully: {folder_name}\\{file}")
             except Exception as e:
-                log_message(f"  캐시 교체 실패 ({folder_name}\\{file}): {e}")
+                log_message(f"  Cache replacement failed ({folder_name}\\{file}): {e}")
 
     return replaced > 0
 
 
 def main():
-    log_message("=== 잠금 화면 캐시 교체 + 이미지 보관 시작 ===")
+    log_message("=== Lock Screen Cache Override & Archiving Started ===")
 
     if RUN_ONCE_PER_DAY and already_ran_today():
-        log_message("오늘 이미 실행됨. 작업을 건너뜁니다.")
-        log_message("=== 작업 종료 (스킵) ===\n")
+        log_message("Already ran today. Skipping execution.")
+        log_message("=== Task Finished (Skipped) ===\n")
         return 0
 
-    # 네트워크가 아직 준비 안 됐을 수 있으니 잠깐 대기
+    # Short delay to ensure network readiness upon boot/unlock
     time.sleep(5)
 
     urlbase = fetch_bing_image_url()
     if not urlbase:
-        log_message("최종 API 요청 실패. 스케줄러 재시도를 위해 종료 코드 1 반환.")
+        log_message("Final API request failed. Returning exit code 1 for scheduler retry.")
         return 1
 
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -179,16 +181,16 @@ def main():
     new_image_path = os.path.join(DOWNLOAD_DIR, f"bing_{timestamp}.jpg")
 
     if not download_image(urlbase, new_image_path):
-        log_message("이미지 다운로드 실패. 스케줄러 재시도를 위해 종료 코드 1 반환.")
+        log_message("Image download failed. Returning exit code 1 for scheduler retry.")
         return 1
 
     if not replace_cache_images(new_image_path):
-        log_message("캐시 교체 실패.")
+        log_message("Cache replacement failed.")
         return 1
 
     subprocess.run(["taskkill", "/f", "/im", "LockApp.exe"], capture_output=True)
-    log_message("LockApp.exe 종료. Win+L에서 새 이미지가 표시됩니다.")
-    log_message("=== 작업 완료 ===\n")
+    log_message("LockApp.exe terminated. New image will display on Win+L.")
+    log_message("=== Task Completed ===\n")
     return 0
 
 
