@@ -3,7 +3,9 @@
 ## Script Overview
 This Python utility is designed as a brute-force solution for when the built-in Windows Spotlight feature gets permanently stuck, refuses to update, and standard troubleshooting methods (such as PowerShell resets or registry tweaks) fail. 
 
-Instead of relying on broken Windows APIs, this script manually fetches the Bing Daily Image, archives it locally, directly overwrites the system's lock screen cache, and forces an immediate visual refresh.
+Instead of relying on broken Windows APIs, this script manually fetches the Bing Daily Image, archives it locally, directly overwrites the system's lock screen cache, and forces an immediate visual refresh. 
+
+This script is tested on Windows 10.
 
 ## Core Features
 - **Aggressive Cache Replacement**: Windows occasionally generates multiple or entirely new cache folders for the lock screen. This script iterates through all directories starting with `LockScreen_` inside the hidden `SystemData` path and overwrites every cached image it finds, ensuring the update is applied regardless of how Windows scrambles the folder structure.
