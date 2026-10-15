@@ -1,17 +1,15 @@
 # Windows Spotlight Overrider & Archiver
 
-## Script Overview
-This Python utility is designed as a brute-force solution for when the built-in Windows Spotlight feature gets permanently stuck, refuses to update, and standard troubleshooting methods (such as PowerShell resets or registry tweaks) fail. 
+## Overview
+A brute-force workaround for when Windows Spotlight gets stuck and stops updating, and standard fixes (PowerShell resets, registry tweaks) no longer help. Instead of relying on the Spotlight APIs, this script fetches the Bing Daily Image directly, archives it locally, overwrites the lock screen cache, and forces an immediate visual refresh.
 
-Instead of relying on broken Windows APIs, this script manually fetches the Bing Daily Image, archives it locally, directly overwrites the system's lock screen cache, and forces an immediate visual refresh. 
+Tested on Windows 10. 
 
-This script is tested on Windows 10.
-
-## Core Features
-- **Aggressive Cache Replacement**: Windows occasionally generates multiple or entirely new cache folders for the lock screen. This script iterates through all directories starting with `LockScreen_` inside the hidden `SystemData` path and overwrites every cached image it finds, ensuring the update is applied regardless of how Windows scrambles the folder structure.
-- **Local Archiving**: Downloaded images are saved to a specified local directory. Unlike the ephemeral nature of standard Windows Spotlight, you have full control to keep your favorite daily wallpapers or delete them as you see fit.
-- **Instant Visual Refresh**: Automatically terminates `LockApp.exe` after cache modification. When you lock the computer (Win + L), Windows is forced to reload and display the newly injected image immediately.
-- **Robust Error Handling**: Utilizes native `curl.exe` with built-in retries, timeouts, and automatic DNS flushing (`ipconfig /flushdns`) to resolve specific network errors before failing.
+## Features
+- **Aggressive cache replacement**: Windows sometimes creates multiple or new `LockScreen_*` folders inside the hidden `SystemData` path. This script iterates through all of them and overwrites every cached image, so the update applies regardless of how Windows shuffles the folder structure.
+- **Local archiving**: Downloaded images are saved to a user-specified directory, giving you full control over which daily wallpapers to keep.
+- **Instant visual refresh**: Terminates `LockApp.exe` after the cache update so that the next Win + L shows the new image immediately.
+- **Robust error handling**: Uses native `curl.exe` with retries, timeouts, and automatic DNS flushing (`ipconfig /flushdns`) to recover from transient network errors before failing.
 
 ## Setup & Configuration
 
@@ -24,7 +22,7 @@ Before scheduling, open `WindowsSpotlight.py` and configure the following paths:
 
 ## Task Scheduler Configuration Guide
 
-Because the script modifies heavily protected system directories (`SystemData`), it must be executed automatically via **Windows Task Scheduler** using the highest system privileges.
+Because the script modifies protected system directories (`SystemData`), it must run via **Windows Task Scheduler** with the highest privileges.
 
 Follow the screenshots below to configure the task exactly as required:
 
